@@ -1,12 +1,13 @@
 import textstat
 import configparser
+import csv
 from threading import Lock
+from googletrans import Translator
+
 
 CONFIG_FILE = "./config.ini"
 
-
 class ConfigUtil:
-    
     _instance = None
     _lock = Lock() 
 
@@ -28,15 +29,34 @@ class ConfigUtil:
         return cls._instance
 
 
-# # ARIで評価
-# textstat.automated_readability_index("")
-# configUtil = ConfigUtil()
-# pconfig = configUtil.getConfig()
+def create_csv(config):
+    csv_path = config.get('Paths','CsvPath')
+    result_path = config.get('Paths','ResultPath')
+    result_list = [] # タプル: (読み込んだcsvの行番号, 生成された文のARI, 生成された文, 生成された文の日本語訳)
+    csv_title = ("読み込んだcsvの行番号", "生成された文のARI", "生成された文", "生成された文の日本語訳")
+
+    with open(csv_path, 'r') as f:
+        for i, row in enumerate(csv.reader(f)):
+            current_row_generated_sentences = row[2].split('\n')
+            for sentence  in current_row_generated_sentences:
+                if len(sentence) != 0:
+                    result_list.append(
+                        #(i,textstat.automated_readability_index(sentence),sentence, Translator().translate(sentence, dest = 'ja').text)
+                        (i,textstat.automated_readability_index(sentence),sentence, "リクエスト制限")
+                    )
+            print(i)
+
+    result_list.sort(key=lambda tup: tup[1]) # ARIでソート
+    
+    with open(result_path, 'w') as f:
+        writer = csv.writer(f)
+        writer.writerow(csv_title)
+        for row in result_list:
+            writer.writerow(row)
+
 
 
 if __name__ == '__main__':
-    config = ConfigUtil.get_instance().config
-    
-    print(config.get('Paths','CsvPath'))
-
+    config = ConfigUtil.get_instance().config    
+    create_csv(config)
 
